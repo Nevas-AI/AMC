@@ -1,35 +1,37 @@
-// Vercel Serverless Function - Routes all requests through TanStack Start
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-let server: any;
-
-async function getServer() {
-  if (server) {
-    return server;
-  }
-
-  const { default: app } = await import("../dist/server");
-  server = app;
-  return server;
-}
-
 export default async (req: VercelRequest, res: VercelResponse) => {
-  const app = await getServer();
+  try {
+    // Dynamically import the server function
+    const { default: handler } = await import("../dist/index.js");
 
-  const request = new Request(
-    `http://${req.headers.host}${req.url}`,
-    {
-      method: req.method,
-      headers: req.headers as any,
-      body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
-    }
-  );
+    // Create a proper fetch request
+    const url = new URL(
+      req.url,
+      `http://${req.headers.host}`
+    );
 
-  const response = await app.fetch(request, {}, {});
+    const response = await handler(
+      new Request(url, {
+        method: req.method,
+        headers: req.headers as Record<string, string>,
+        body:
+          req.method !== "GET" && req.method !== "HEAD"
+            ? JSON.stringify(req.body)
+            : undefined,
+      })
+    );
 
-  res.status(response.status);
-  response.headers.forEach((value, key) => {
-    res.setHeader(key, value);
-  });
-  res.send(await response.text());
+    // Set response headers
+    response.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+
+    res.status(response.status);
+    res.send(await response.text());
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal Server Error", details: error });
+  }
 };
+
