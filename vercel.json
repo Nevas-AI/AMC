@@ -1,5 +1,10 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "tanstack-start"
+  "outputDirectory": "dist/public",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/api"
+    }
+  ]
 }
